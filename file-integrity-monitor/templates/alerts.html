@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Security Alerts | FIM System{% endblock %}
+
+{% block content %}
+<div class="alerts-container">
+    <div class="page-header">
+        <div>
+            <h1>Security Alerts & Threat Triage</h1>
+            <p class="subtitle">Rule-based threat engine alerts for detected integrity violations</p>
+        </div>
+    </div>
+
+    <!-- Forensic Educational Banner -->
+    <div class="forensic-notice-box">
+        <div class="notice-icon">ℹ️</div>
+        <div class="notice-content">
+            <strong>Forensic Distinction Notice:</strong>
+            <p>
+                A file integrity violation indicates that an unexpected byte alteration or missing baseline was observed.
+                It does <em>not</em> automatically establish the presence of malware. Legitimate system updates, user edits, or patch cycles also alter cryptographic hashes. Digital forensic best practice requires corroborating hash divergence with access logs and user telemetry.
+            </p>
+        </div>
+    </div>
+
+    <!-- Alerts Table -->
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Active Security Alerts ({{ alerts|length }})</h2>
+        </div>
+        <div class="panel-body">
+            {% if alerts %}
+                <table class="cyber-table">
+                    <thead>
+                        <tr>
+                            <th>Alert ID</th>
+                            <th>Target File</th>
+                            <th>Event Type</th>
+                            <th>Severity</th>
+                            <th>Previous SHA-256 / Current SHA-256</th>
+                            <th>Timestamp</th>
+                            <th>Status & Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alert in alerts %}
+                            <tr>
+                                <td><code>{{ alert.alert_id }}</code></td>
+                                <td>
+                                    <strong>{{ alert.file_name }}</strong>
+                                    {% if alert.description %}
+                                        <p class="text-xs text-muted mt-1">{{ alert.description }}</p>
+                                    {% endif %}
+                                </td>
+                                <td><span class="event-pill">{{ alert.event_type }}</span></td>
+                                <td>
+                                    <span class="badge badge-{{ alert.alert_level|lower }}">
+                                        {{ alert.alert_level }}
+                                    </span>
+                                </td>
+                                <td class="hash-cell">
+                                    <div class="hash-compare-mini">
+                                        <div><span class="lbl">Prev:</span> <code class="text-xs">{{ alert.previous_hash[:12] if alert.previous_hash else 'N/A' }}...</code></div>
+                                        <div><span class="lbl">Curr:</span> <code class="text-xs text-danger">{{ alert.current_hash[:12] if alert.current_hash else 'N/A' }}...</code></div>
+                                    </div>
+                                </td>
+                                <td class="text-muted text-sm">{{ alert.timestamp }}</td>
+                                <td>
+                                    <form action="{{ url_for('update_alert_status', alert_id=alert.id) }}" method="POST" class="status-change-form">
+                                        <select name="status" onchange="this.form.submit()" class="status-select select-{{ alert.status|lower }}">
+                                            <option value="Open" {% if alert.status == 'Open' %}selected{% endif %}>Open</option>
+                                            <option value="Investigating" {% if alert.status == 'Investigating' %}selected{% endif %}>Investigating</option>
+                                            <option value="Resolved" {% if alert.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                                        </select>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    <span>🛡️</span>
+                    <p>No alerts recorded. All monitored files comply with baseline SHA-256 digests.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

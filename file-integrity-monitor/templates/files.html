@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Monitored Files | FIM System{% endblock %}
+
+{% block content %}
+<div class="files-container">
+    <div class="page-header">
+        <div>
+            <h1>Monitored Files Repository</h1>
+            <p class="subtitle">Cryptographically tracked files with SHA-256 baseline hashes</p>
+        </div>
+    </div>
+
+    <!-- Add file form -->
+    <div class="card add-file-card">
+        <h3>➕ Register File for Baseline Monitoring</h3>
+        <p class="text-sm text-muted">Enter absolute or relative path to an existing file. System will compute initial SHA-256 hash as baseline.</p>
+        <form action="{{ url_for('add_file') }}" method="POST" class="inline-form">
+            <input type="text" name="file_path" placeholder="e.g. /etc/sys.config, ./test_folder/safe.txt, or sample_data/app.conf" required class="input-field">
+            <button type="submit" class="btn btn-primary">Add to Baseline</button>
+        </form>
+    </div>
+
+    <!-- Files Table -->
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Tracked Files Inventory ({{ files|length }})</h2>
+        </div>
+        <div class="panel-body">
+            {% if files %}
+                <table class="cyber-table">
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Status</th>
+                            <th>Path</th>
+                            <th>Size</th>
+                            <th>Baseline SHA-256</th>
+                            <th>Last Scanned</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in files %}
+                            <tr>
+                                <td class="font-bold">
+                                    <a href="{{ url_for('file_details', file_id=file.id) }}" class="file-link">
+                                        📄 {{ file.file_name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge badge-status-{{ file.status|lower }}">
+                                        {{ file.status }}
+                                    </span>
+                                </td>
+                                <td class="text-muted text-sm mono-path">{{ file.file_path }}</td>
+                                <td class="text-sm">{{ file.file_size }} bytes</td>
+                                <td>
+                                    <span class="code-hash text-xs" title="{{ file.baseline_hash }}">
+                                        {{ file.baseline_hash[:12] }}...{{ file.baseline_hash[-8:] }}
+                                    </span>
+                                </td>
+                                <td class="text-muted text-sm">{{ file.last_scan_time or 'Never' }}</td>
+                                <td>
+                                    <a href="{{ url_for('file_details', file_id=file.id) }}" class="btn btn-sm btn-secondary">
+                                        Inspect 🔍
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    <span>📂</span>
+                    <p>No files are currently monitored. Add a file above to begin.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

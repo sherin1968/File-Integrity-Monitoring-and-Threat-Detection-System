@@ -1,0 +1,4 @@
+Cybersecurity Standard Operating Procedure (SOP)
+1. All production files must have baseline SHA-256 hashes recorded.
+2. Unscheduled file alterations trigger HIGH priority incident alerts.
+3. Integrity violations must be triaged within 15 minutes.

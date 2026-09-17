@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Logs | FIM System{% endblock %}
+
+{% block content %}
+<div class="logs-container">
+    <div class="page-header">
+        <div>
+            <h1>Forensic Activity Audit Logs</h1>
+            <p class="subtitle">Immutable chronological timeline of security scan events in SQLite</p>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Activity Logs ({{ logs|length }} Entries)</h2>
+        </div>
+        <div class="panel-body">
+            {% if logs %}
+                <table class="cyber-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>File Name</th>
+                            <th>Event Type</th>
+                            <th>Status</th>
+                            <th>Level</th>
+                            <th>Previous Hash</th>
+                            <th>Current Hash</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                            <tr>
+                                <td class="text-muted text-sm mono-time">{{ log.timestamp }}</td>
+                                <td class="font-bold">{{ log.file_name }}</td>
+                                <td><span class="event-pill">{{ log.event_type }}</span></td>
+                                <td>
+                                    <span class="badge badge-status-{{ log.status|lower }}">
+                                        {{ log.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-{{ log.alert_level|lower }}">
+                                        {{ log.alert_level }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <code class="text-xs" title="{{ log.previous_hash }}">
+                                        {{ log.previous_hash[:10] if log.previous_hash else 'N/A' }}...
+                                    </code>
+                                </td>
+                                <td>
+                                    <code class="text-xs" title="{{ log.current_hash }}">
+                                        {{ log.current_hash[:10] if log.current_hash else 'N/A' }}...
+                                    </code>
+                                </td>
+                                <td class="text-sm text-muted">{{ log.details }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    <span>📜</span>
+                    <p>No activity logged yet. Run a scan to populate the audit trail.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

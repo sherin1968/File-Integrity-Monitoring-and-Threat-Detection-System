@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | FIM & Threat Detection System{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header banner -->
+    <div class="page-header">
+        <div>
+            <h1>Security Operations Dashboard</h1>
+            <p class="subtitle">Real-time SHA-256 baseline comparison & forensic rule evaluation</p>
+        </div>
+        <div class="quick-stats-badge">
+            <span class="status-indicator safe"></span> Hash Algorithm: SHA-256 (256-bit digest)
+        </div>
+    </div>
+
+    <!-- Stat cards grid -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-icon blue">📁</div>
+            <div class="metric-data">
+                <span class="metric-num">{{ stats.total_files }}</span>
+                <span class="metric-title">Monitored Files</span>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon green">✅</div>
+            <div class="metric-data">
+                <span class="metric-num text-success">{{ stats.safe_files }}</span>
+                <span class="metric-title">Safe Files (Intact)</span>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon amber">⚠️</div>
+            <div class="metric-data">
+                <span class="metric-num text-warning">{{ stats.modified_files }}</span>
+                <span class="metric-title">Modified Files</span>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon red">🗑️</div>
+            <div class="metric-data">
+                <span class="metric-num text-danger">{{ stats.deleted_files }}</span>
+                <span class="metric-title">Deleted Files</span>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon purple">✨</div>
+            <div class="metric-data">
+                <span class="metric-num text-purple">{{ stats.new_files }}</span>
+                <span class="metric-title">New Files</span>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon crimson">🚨</div>
+            <div class="metric-data">
+                <span class="metric-num text-danger">{{ stats.total_alerts }}</span>
+                <span class="metric-title">Total Alerts ({{ stats.open_alerts }} Open)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two-column layout: Recent Alerts and Recent Logs -->
+    <div class="dashboard-panels">
+        <!-- Recent Alerts Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>🚨 Security Alerts</h2>
+                <a href="{{ url_for('alerts') }}" class="btn-link">View All Alerts →</a>
+            </div>
+            <div class="panel-body">
+                {% if recent_alerts %}
+                    <table class="cyber-table">
+                        <thead>
+                            <tr>
+                                <th>Alert ID</th>
+                                <th>File Name</th>
+                                <th>Event Type</th>
+                                <th>Level</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alert in recent_alerts %}
+                                <tr>
+                                    <td><code>{{ alert.alert_id }}</code></td>
+                                    <td class="font-bold">{{ alert.file_name }}</td>
+                                    <td>{{ alert.event_type }}</td>
+                                    <td>
+                                        <span class="badge badge-{{ alert.alert_level|lower }}">
+                                            {{ alert.alert_level }}
+                                        </span>
+                                    </td>
+                                    <td><span class="status-pill status-{{ alert.status|lower }}">{{ alert.status }}</span></td>
+                                    <td class="text-muted text-sm">{{ alert.timestamp }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty-state">
+                        <span>🛡️</span>
+                        <p>No security alerts recorded. All monitored files match baselines.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Activity Logs Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>📜 Recent Forensic Activity</h2>
+                <a href="{{ url_for('logs') }}" class="btn-link">View Audit Logs →</a>
+            </div>
+            <div class="panel-body">
+                {% if recent_logs %}
+                    <div class="activity-feed">
+                        {% for log in recent_logs %}
+                            <div class="activity-item">
+                                <div class="activity-bullet status-{{ log.status|lower }}"></div>
+                                <div class="activity-details">
+                                    <div class="activity-top">
+                                        <span class="activity-title"><strong>{{ log.file_name }}</strong>: {{ log.event_type }}</span>
+                                        <span class="activity-time text-muted">{{ log.timestamp }}</span>
+                                    </div>
+                                    <p class="activity-desc text-sm text-muted">{{ log.details }}</p>
+                                    <div class="hash-tag-row">
+                                        {% if log.current_hash and log.current_hash != 'DELETED' and log.current_hash != 'N/A' %}
+                                            <span class="code-hash text-xs">SHA-256: {{ log.current_hash[:16] }}...{{ log.current_hash[-8:] }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <span>📋</span>
+                        <p>No recent activity. Click "Scan Now" or add files to monitor.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

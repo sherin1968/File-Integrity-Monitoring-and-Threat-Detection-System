@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FIM & Threat Detection System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="cyber-theme">
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-shield">🛡️</div>
+                <div class="brand-text">
+                    <h2>FIM System</h2>
+                    <span class="badge-sub">Cyber Forensics</span>
+                </div>
+            </div>
+
+            <nav class="nav-links">
+                <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <span class="icon">📊</span> Dashboard
+                </a>
+                <a href="{{ url_for('files') }}" class="nav-item {% if request.endpoint == 'files' %}active{% endif %}">
+                    <span class="icon">📁</span> Monitored Files
+                </a>
+                <a href="{{ url_for('alerts') }}" class="nav-item {% if request.endpoint == 'alerts' %}active{% endif %}">
+                    <span class="icon">🚨</span> Security Alerts
+                </a>
+                <a href="{{ url_for('logs') }}" class="nav-item {% if request.endpoint == 'logs' %}active{% endif %}">
+                    <span class="icon">📜</span> Activity Logs
+                </a>
+            </nav>
+
+            <div class="sidebar-scan-box">
+                <p class="scan-label">Integrity Engine</p>
+                <form action="{{ url_for('trigger_scan') }}" method="POST">
+                    <button type="submit" class="btn btn-scan-full">⚡ Scan Now</button>
+                </form>
+            </div>
+
+            <div class="sidebar-footer">
+                <span class="status-dot online"></span>
+                <span>SHA-256 Engine Active</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="breadcrumb">
+                    <span class="system-title">File Integrity Monitoring & Threat Detection</span>
+                </div>
+                <div class="top-actions">
+                    <form action="{{ url_for('trigger_scan') }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn btn-primary">⚡ Scan Now</button>
+                    </form>
+                </div>
+            </header>
+
+            <!-- Flash alerts -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-container">
+                        {% for category, message in messages %}
+                            <div class="alert-banner alert-{{ category }}">
+                                <span>{{ message }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="page-body">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

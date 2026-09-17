@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}{{ file.file_name }} | Forensic Details{% endblock %}
+
+{% block content %}
+<div class="file-details-container">
+    <div class="page-header">
+        <div>
+            <a href="{{ url_for('files') }}" class="back-link">← Back to Monitored Files</a>
+            <h1>Forensic File Inspection: {{ file.file_name }}</h1>
+            <p class="subtitle">{{ file.file_path }}</p>
+        </div>
+        <div class="details-status">
+            <span class="badge badge-status-{{ file.status|lower }} lg">
+                Status: {{ file.status }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Metadata Grid -->
+    <div class="details-grid">
+        <div class="detail-card">
+            <span class="detail-label">File Extension</span>
+            <span class="detail-val">{{ file.file_extension or 'None' }}</span>
+        </div>
+        <div class="detail-card">
+            <span class="detail-label">File Size</span>
+            <span class="detail-val">{{ file.file_size }} bytes</span>
+        </div>
+        <div class="detail-card">
+            <span class="detail-label">First Monitored</span>
+            <span class="detail-val">{{ file.first_monitored_time }}</span>
+        </div>
+        <div class="detail-card">
+            <span class="detail-label">Last Scanned</span>
+            <span class="detail-val">{{ file.last_scan_time or 'Pending Scan' }}</span>
+        </div>
+    </div>
+
+    <!-- Hash Comparison Block -->
+    <div class="panel hash-comparison-panel">
+        <div class="panel-header">
+            <h2>🔐 Cryptographic Hash Verification (SHA-256)</h2>
+            <span class="hash-verdict verdict-{{ file.status|lower }}">
+                {% if file.baseline_hash == file.current_hash and file.status != 'DELETED' %}
+                    MATCH (INTEGRITY PRESERVED)
+                {% elif file.status == 'DELETED' %}
+                    FILE REMOVED FROM DISK
+                {% else %}
+                    HASH DIVERGENCE DETECTED
+                {% endif %}
+            </span>
+        </div>
+        <div class="panel-body">
+            <div class="hash-display-row">
+                <div class="hash-block">
+                    <span class="hash-type">Baseline SHA-256 (Original)</span>
+                    <div class="hash-box safe">
+                        <code>{{ file.baseline_hash or 'Not recorded' }}</code>
+                    </div>
+                </div>
+
+                <div class="hash-block">
+                    <span class="hash-type">Current SHA-256 (Latest Scan)</span>
+                    <div class="hash-box {% if file.baseline_hash == file.current_hash %}safe{% else %}tampered{% endif %}">
+                        <code>{{ file.current_hash or 'Pending scan or file deleted' }}</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hash-analysis-note">
+                <strong>Forensic Insight:</strong>
+                <p>
+                    SHA-256 produces a unique 256-bit (64 hex characters) cryptographic digest.
+                    Due to the <em>Avalanche Effect</em>, changing even a single bit or whitespace in this file causes on average 50% of the output bits to flip, making any unauthorized modification immediately detectable.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Related Alerts -->
+    {% if alerts %}
+    <div class="panel">
+        <div class="panel-header">
+            <h2>🚨 Alerts Triggered for this File ({{ alerts|length }})</h2>
+        </div>
+        <div class="panel-body">
+            <table class="cyber-table">
+                <thead>
+                    <tr>
+                        <th>Alert ID</th>
+                        <th>Severity</th>
+                        <th>Timestamp</th>
+                        <th>Status</th>
+                        <th>Finding</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alt in alerts %}
+                    <tr>
+                        <td><code>{{ alt.alert_id }}</code></td>
+                        <td><span class="badge badge-{{ alt.alert_level|lower }}">{{ alt.alert_level }}</span></td>
+                        <td class="text-sm text-muted">{{ alt.timestamp }}</td>
+                        <td><span class="status-pill status-{{ alt.status|lower }}">{{ alt.status }}</span></td>
+                        <td class="text-sm">{{ alt.description }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

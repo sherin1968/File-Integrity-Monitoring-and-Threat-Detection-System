@@ -1,0 +1,6 @@
+{
+  "name": "File Integrity Monitoring and Threat Detection System",
+  "description": "A web-based security monitoring application that detects unauthorized file modifications using cryptographic SHA-256 hashes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
