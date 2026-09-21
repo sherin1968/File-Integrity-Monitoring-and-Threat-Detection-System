@@ -549,17 +549,27 @@ def scan_monitored_files():
     },
     'app.py (Root)': {
       language: 'python',
-      description: 'Root WSGI/Render entry point satisfying the default `gunicorn app:app` cloud start command.',
+      description: 'Root WSGI/Render entry point satisfying the default `gunicorn app:app` cloud start command without circular import conflicts.',
       code: `import sys
 import os
+import importlib.util
 
-# Add file-integrity-monitor to sys.path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FIM_DIR = os.path.join(BASE_DIR, "file-integrity-monitor")
+
+# Add subfolder to sys.path
 if FIM_DIR not in sys.path:
     sys.path.insert(0, FIM_DIR)
 
-from app import app
+# Dynamically load the Flask app module under 'fim_engine' namespace
+target_app_path = os.path.join(FIM_DIR, "app.py")
+spec = importlib.util.spec_from_file_location("fim_engine", target_app_path)
+fim_module = importlib.util.module_from_spec(spec)
+sys.modules["fim_engine"] = fim_module
+spec.loader.exec_module(fim_module)
+
+# Expose Flask application instance as 'app' for Gunicorn
+app = fim_module.app
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
