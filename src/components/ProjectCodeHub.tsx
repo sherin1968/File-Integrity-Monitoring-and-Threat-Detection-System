@@ -547,6 +547,30 @@ def scan_monitored_files():
       description: 'Standard Python dependencies including Flask, Werkzeug, and Gunicorn for Render production deployment.',
       code: `Flask==3.0.3\nWerkzeug==3.0.3\ngunicorn==21.2.0`
     },
+    'app.py (Root)': {
+      language: 'python',
+      description: 'Root WSGI/Render entry point satisfying the default `gunicorn app:app` cloud start command.',
+      code: `import sys
+import os
+
+# Add file-integrity-monitor to sys.path
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FIM_DIR = os.path.join(BASE_DIR, "file-integrity-monitor")
+if FIM_DIR not in sys.path:
+    sys.path.insert(0, FIM_DIR)
+
+from app import app
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "false").lower() in ("1", "true")
+    app.run(host="0.0.0.0", port=port, debug=debug)`
+    },
+    'Procfile': {
+      language: 'text',
+      description: 'Render and cloud process file specifying the Gunicorn web server.',
+      code: `web: gunicorn app:app`
+    },
     'render.yaml': {
       language: 'yaml',
       description: 'Render Blueprint infrastructure-as-code file for 1-click cloud deployment.',
@@ -556,7 +580,7 @@ def scan_monitored_files():
     name: file-integrity-monitoring-api
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app
+    startCommand: gunicorn app:app
     healthCheckPath: /api/health
     plan: free
     envVars:
@@ -579,11 +603,6 @@ def scan_monitored_files():
     envVars:
       - key: NODE_VERSION
         value: 20`
-    },
-    'Procfile': {
-      language: 'text',
-      description: 'Render and cloud process file specifying the Gunicorn web server.',
-      code: `web: gunicorn wsgi:app`
     },
     'wsgi.py': {
       language: 'python',

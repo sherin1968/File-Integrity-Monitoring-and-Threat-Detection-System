@@ -13,15 +13,18 @@ from monitor import add_file_to_monitor, scan_monitored_files
 from threat_detection import evaluate_threat
 from setup_demo import seed_sample_data
 
-# Path to potential compiled React frontend in root dist/
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Absolute path resolution so app runs cleanly from root or subfolder
+FIM_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(FIM_DIR)
 DIST_DIR = os.path.join(ROOT_DIR, "dist")
 HAS_VITE_BUILD = os.path.isfile(os.path.join(DIST_DIR, "index.html"))
+TEMPLATES_DIR = os.path.join(FIM_DIR, "templates")
+STATIC_DIR = os.path.join(FIM_DIR, "static")
 
 app = Flask(
     __name__,
-    static_folder=os.path.join(DIST_DIR, "assets") if HAS_VITE_BUILD else "static",
-    template_folder="templates"
+    static_folder=STATIC_DIR,
+    template_folder=TEMPLATES_DIR
 )
 app.secret_key = os.environ.get("SECRET_KEY", "fim-security-educational-key")
 

@@ -4,7 +4,7 @@ services:
     name: file-integrity-monitoring-api
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app
+    startCommand: gunicorn app:app
     healthCheckPath: /api/health
     plan: free
     envVars:

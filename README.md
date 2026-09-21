@@ -130,10 +130,11 @@ Open `http://localhost:3000` in your web browser.
 ## 6. Deploying to Render Cloud (1-Click or Manual)
 
 This project includes complete out-of-the-box configuration files for deploying to **Render**:
+- `app.py` (Root entry point matching Render's default `gunicorn app:app`)
 - `render.yaml` (Render Blueprint for 1-click deployment of both Web Service & Static UI)
-- `Procfile` (`web: gunicorn wsgi:app`)
+- `Procfile` (`web: gunicorn app:app`)
 - `wsgi.py` (Production WSGI entry point)
-- `runtime.txt` (`python-3.11.9`)
+- `.python-version` & `runtime.txt` (`3.11.9`)
 - `requirements.txt` (`Flask`, `Werkzeug`, `gunicorn`)
 
 ### Method 1: Deploy with Render Blueprint (Recommended)
@@ -147,13 +148,13 @@ This project includes complete out-of-the-box configuration files for deploying 
 
 ### Method 2: Deploy as a Python Web Service
 1. In Render Dashboard, click **New +** -> **Web Service**.
-2. Connect your repository.
+2. Connect your repository: `https://github.com/sherin1968/File-Integrity-Monitoring-and-Threat-Detection-System`
 3. Configure the settings:
    - **Runtime**: `Python 3`
    - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn wsgi:app`
+   - **Start Command**: `gunicorn app:app` (or leave default)
    - **Plan**: `Free`
-4. Click **Create Web Service**. Render boots the Flask backend, auto-seeds default forensic sample files, and serves the healthcheck at `/api/health`.
+4. Click **Create Web Service**. Render boots the Flask backend via Gunicorn, auto-seeds default forensic sample files, and passes the healthcheck at `/api/health`.
 
 ---
 
