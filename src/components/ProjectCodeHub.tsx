@@ -544,8 +544,64 @@ def scan_monitored_files():
     },
     'requirements.txt': {
       language: 'text',
-      description: 'Standard Python dependencies needed to run the Flask application.',
-      code: `Flask==3.0.3\nWerkzeug==3.0.3`
+      description: 'Standard Python dependencies including Flask, Werkzeug, and Gunicorn for Render production deployment.',
+      code: `Flask==3.0.3\nWerkzeug==3.0.3\ngunicorn==21.2.0`
+    },
+    'render.yaml': {
+      language: 'yaml',
+      description: 'Render Blueprint infrastructure-as-code file for 1-click cloud deployment.',
+      code: `services:
+  # 1. Full-Stack / Backend Python Flask Web Service
+  - type: web
+    name: file-integrity-monitoring-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app
+    healthCheckPath: /api/health
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_DEBUG
+        value: "false"
+
+  # 2. Modern React Cybersecurity Dashboard (Static Site)
+  - type: static
+    name: file-integrity-monitoring-ui
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: 20`
+    },
+    'Procfile': {
+      language: 'text',
+      description: 'Render and cloud process file specifying the Gunicorn web server.',
+      code: `web: gunicorn wsgi:app`
+    },
+    'wsgi.py': {
+      language: 'python',
+      description: 'WSGI production entry point connecting Gunicorn with the Flask application.',
+      code: `import sys
+import os
+
+# Insert file-integrity-monitor into sys.path
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FIM_DIR = os.path.join(BASE_DIR, "file-integrity-monitor")
+if FIM_DIR not in sys.path:
+    sys.path.insert(0, FIM_DIR)
+
+from app import app
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)`
     },
     'setup_demo.py': {
       language: 'python',
@@ -559,8 +615,8 @@ import os
 from database import init_db
 from monitor import add_file_to_monitor
 
-def main():
-    print("[*] Initializing SQLite database...")
+def seed_sample_data():
+    """Seeds default sample files and baseline SHA-256 hashes into the SQLite database."""
     init_db()
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -601,14 +657,21 @@ def main():
         )
     }
 
-    print("[*] Writing sample files into:", sample_dir)
+    results = []
     for fname, content in test_files.items():
         fpath = os.path.join(sample_dir, fname)
         with open(fpath, "w") as f:
             f.write(content)
         success, msg = add_file_to_monitor(fpath)
-        print(f"    [+] {fname}: {msg}")
+        results.append({"file": fname, "success": success, "message": msg})
 
+    return results
+
+def main():
+    print("[*] Initializing SQLite database...")
+    results = seed_sample_data()
+    for res in results:
+        print(f"    [+] {res['file']}: {res['message']}")
     print("\\n[✔] College project demo setup complete!")
     print("[✔] You can now start the application with: python app.py")
 
@@ -666,6 +729,37 @@ if __name__ == "__main__":
           <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono">
             <span className="text-cyan-400 text-[11px] block font-sans font-semibold mb-1">Step 3: Run Flask App</span>
             <code className="text-slate-300">python app.py</code>
+          </div>
+        </div>
+      </div>
+
+      {/* Render Cloud Deployment Guide */}
+      <div className="bg-gradient-to-r from-cyan-950/40 via-slate-900 to-indigo-950/40 border border-cyan-500/30 rounded-xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-bold text-cyan-300">
+            <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 text-[10px] font-mono uppercase tracking-wide">Render Ready</span>
+            <span>Deploy to Render Cloud in 3 Simple Steps</span>
+          </div>
+          <span className="text-[11px] text-slate-400 font-mono">render.yaml included</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="bg-slate-950/80 p-3 rounded-lg border border-cyan-500/20">
+            <span className="text-cyan-400 font-semibold block mb-1">1. Push to GitHub</span>
+            <p className="text-slate-300 text-[11px] leading-relaxed">
+              Create a Git repo and push the code containing <code className="text-cyan-300 font-mono">render.yaml</code>, <code className="text-cyan-300 font-mono">Procfile</code>, and <code className="text-cyan-300 font-mono">requirements.txt</code>.
+            </p>
+          </div>
+          <div className="bg-slate-950/80 p-3 rounded-lg border border-cyan-500/20">
+            <span className="text-cyan-400 font-semibold block mb-1">2. Render Web Service</span>
+            <p className="text-slate-300 text-[11px] leading-relaxed">
+              In Render Dashboard, choose <strong className="text-slate-200">New + &gt; Blueprint</strong> or <strong className="text-slate-200">Web Service</strong> with Build: <code className="text-cyan-300 font-mono">pip install -r requirements.txt</code> and Start: <code className="text-cyan-300 font-mono">gunicorn wsgi:app</code>.
+            </p>
+          </div>
+          <div className="bg-slate-950/80 p-3 rounded-lg border border-cyan-500/20">
+            <span className="text-cyan-400 font-semibold block mb-1">3. Live URL</span>
+            <p className="text-slate-300 text-[11px] leading-relaxed">
+              Render automatically assigns an HTTPS URL. Database auto-seeds and healthchecks pass at <code className="text-cyan-300 font-mono">/api/health</code>.
+            </p>
           </div>
         </div>
       </div>

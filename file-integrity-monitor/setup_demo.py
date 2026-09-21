@@ -8,8 +8,8 @@ import os
 from database import init_db
 from monitor import add_file_to_monitor
 
-def main():
-    print("[*] Initializing SQLite database...")
+def seed_sample_data():
+    """Seeds default sample files and baseline SHA-256 hashes into the SQLite database."""
     init_db()
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -50,14 +50,21 @@ def main():
         )
     }
 
-    print("[*] Writing sample files into:", sample_dir)
+    results = []
     for fname, content in test_files.items():
         fpath = os.path.join(sample_dir, fname)
         with open(fpath, "w") as f:
             f.write(content)
         success, msg = add_file_to_monitor(fpath)
-        print(f"    [+] {fname}: {msg}")
+        results.append({"file": fname, "success": success, "message": msg})
 
+    return results
+
+def main():
+    print("[*] Initializing SQLite database...")
+    results = seed_sample_data()
+    for res in results:
+        print(f"    [+] {res['file']}: {res['message']}")
     print("\n[✔] College project demo setup complete!")
     print("[✔] You can now start the application with: python app.py")
 

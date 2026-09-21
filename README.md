@@ -127,7 +127,37 @@ Open `http://localhost:3000` in your web browser.
 
 ---
 
-## 6. How to Test and Demonstrate for College Viva / Lab Exam
+## 6. Deploying to Render Cloud (1-Click or Manual)
+
+This project includes complete out-of-the-box configuration files for deploying to **Render**:
+- `render.yaml` (Render Blueprint for 1-click deployment of both Web Service & Static UI)
+- `Procfile` (`web: gunicorn wsgi:app`)
+- `wsgi.py` (Production WSGI entry point)
+- `runtime.txt` (`python-3.11.9`)
+- `requirements.txt` (`Flask`, `Werkzeug`, `gunicorn`)
+
+### Method 1: Deploy with Render Blueprint (Recommended)
+1. Push this repository to your GitHub or GitLab account.
+2. Log into your [Render Dashboard](https://dashboard.render.com).
+3. Click **New +** and select **Blueprint**.
+4. Connect your repository. Render automatically parses `render.yaml` and sets up:
+   - **`file-integrity-monitoring-api`**: Python Web Service running Gunicorn with auto-seeded SQLite database.
+   - **`file-integrity-monitoring-ui`**: React Frontend Static Site building with `npm run build`.
+5. Click **Apply**. In 2-3 minutes, your live cybersecurity application is accessible worldwide with free automatic HTTPS.
+
+### Method 2: Deploy as a Python Web Service
+1. In Render Dashboard, click **New +** -> **Web Service**.
+2. Connect your repository.
+3. Configure the settings:
+   - **Runtime**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `gunicorn wsgi:app`
+   - **Plan**: `Free`
+4. Click **Create Web Service**. Render boots the Flask backend, auto-seeds default forensic sample files, and serves the healthcheck at `/api/health`.
+
+---
+
+## 7. How to Test and Demonstrate for College Viva / Lab Exam
 
 1. **View Clean Baseline:**
    - Launch the dashboard and note the initial state: all files show `SAFE` with matching SHA-256 baseline and current hashes.

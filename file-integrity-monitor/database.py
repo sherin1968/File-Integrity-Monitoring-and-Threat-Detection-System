@@ -7,8 +7,8 @@ import sqlite3
 import os
 from datetime import datetime
 
-DB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "database")
-DB_PATH = os.path.join(DB_DIR, "security.db")
+DB_DIR = os.environ.get("DATABASE_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "database"))
+DB_PATH = os.environ.get("DATABASE_PATH", os.path.join(DB_DIR, "security.db"))
 
 def get_db_connection():
     """Establish connection to SQLite database with dictionary-like row access."""
@@ -41,7 +41,7 @@ def init_db():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS file_hashes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_id INTEGER NOT NULL,
+        file_id INTEGER UNIQUE NOT NULL,
         baseline_hash TEXT NOT NULL,
         current_hash TEXT NOT NULL,
         updated_at TEXT NOT NULL,

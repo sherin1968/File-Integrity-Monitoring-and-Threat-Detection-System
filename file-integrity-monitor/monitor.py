@@ -45,10 +45,14 @@ def add_file_to_monitor(file_path):
         cursor.execute("SELECT id FROM monitored_files WHERE file_path = ?", (clean_path,))
         file_id = cursor.fetchone()['id']
 
-        # Store baseline hash
+        # Store or update baseline hash with conflict resolution
         cursor.execute("""
             INSERT INTO file_hashes (file_id, baseline_hash, current_hash, updated_at)
             VALUES (?, ?, ?, ?)
+            ON CONFLICT(file_id) DO UPDATE SET
+                baseline_hash = excluded.baseline_hash,
+                current_hash = excluded.current_hash,
+                updated_at = excluded.updated_at;
         """, (file_id, baseline_hash, baseline_hash, now_str))
 
         # Log event
@@ -72,18 +76,18 @@ def scan_monitored_files():
     - Compares with stored baseline hash
     - Detects SAFE, MODIFIED, DELETED
     - Applies threat detection rules
-    - Generates alerts & activity logs
+    - Generates alerts & activity logs with deduplication
     """
     conn = get_db_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT mf.id, mf.file_name, mf.file_path, mf.file_extension, mf.status,
+        SELECT mf.id, mf.file_name, mf.file_path, mf.file_extension, mf.status as prev_status,
                fh.baseline_hash, fh.current_hash as prev_scan_hash
         FROM monitored_files mf
         JOIN file_hashes fh ON mf.id = fh.file_id
         WHERE mf.is_active = 1
-        ORDER BY fh.id DESC
+        ORDER BY mf.id ASC
     """)
     files = cursor.fetchall()
 
@@ -93,7 +97,7 @@ def scan_monitored_files():
     safe_files = []
     new_alerts_count = 0
 
-    # First pass: identify modified and deleted
+    # First pass: identify modified, deleted, and safe
     scan_previews = []
     for row in files:
         f_id = row['id']
@@ -101,28 +105,36 @@ def scan_monitored_files():
         f_path = row['file_path']
         baseline = row['baseline_hash']
         prev_scan = row['prev_scan_hash']
+        prev_status = row['prev_status']
 
         if not os.path.exists(f_path):
-            deleted_files.append((f_id, f_name, f_path, baseline, prev_scan))
-            scan_previews.append(('DELETED', f_id, f_name, f_path, baseline, None, 0))
+            deleted_files.append((f_id, f_name, f_path, baseline, prev_scan, prev_status))
+            scan_previews.append(('DELETED', f_id, f_name, f_path, baseline, prev_scan, prev_status, 0))
         else:
             curr_size = os.path.getsize(f_path)
             curr_hash = calculate_sha256(f_path)
             if curr_hash != baseline:
-                modified_files.append((f_id, f_name, f_path, baseline, curr_hash))
-                scan_previews.append(('MODIFIED', f_id, f_name, f_path, baseline, curr_hash, curr_size))
+                modified_files.append((f_id, f_name, f_path, baseline, curr_hash, prev_scan, prev_status))
+                scan_previews.append(('MODIFIED', f_id, f_name, f_path, baseline, curr_hash, prev_scan, prev_status, curr_size))
             else:
-                safe_files.append((f_id, f_name, f_path, baseline, curr_hash))
-                scan_previews.append(('SAFE', f_id, f_name, f_path, baseline, curr_hash, curr_size))
+                safe_files.append((f_id, f_name, f_path, baseline, curr_hash, prev_status))
+                scan_previews.append(('SAFE', f_id, f_name, f_path, baseline, curr_hash, prev_scan, prev_status, curr_size))
 
-    # Second pass: commit updates and evaluate threats
+    # Second pass: commit updates, deduplicate alerts, evaluate threats
     modified_count = len(modified_files)
     scan_context = {'modified_count': modified_count}
 
     for item in scan_previews:
-        status, f_id, f_name, f_path, baseline, curr_hash, curr_size = item
+        if item[0] == 'SAFE':
+            _, f_id, f_name, f_path, baseline, curr_hash, prev_scan, prev_status, curr_size = item
 
-        if status == 'SAFE':
+            # If it was previously MODIFIED or DELETED, record remediation
+            if prev_status in ('MODIFIED', 'DELETED'):
+                cursor.execute("""
+                    INSERT INTO activity_logs (timestamp, file_name, event_type, previous_hash, current_hash, status, alert_level, details)
+                    VALUES (?, ?, 'REMEDIATION_RESTORED', ?, ?, 'SAFE', 'LOW', 'Authoritative baseline restored; file integrity confirmed intact.')
+                """, (now_str, f_name, prev_scan or 'N/A', curr_hash))
+
             cursor.execute("""
                 UPDATE monitored_files
                 SET status = 'SAFE', last_scan_time = ?, file_size = ?
@@ -135,7 +147,8 @@ def scan_monitored_files():
                 WHERE file_id = ?
             """, (curr_hash, now_str, f_id))
 
-        elif status == 'MODIFIED':
+        elif item[0] == 'MODIFIED':
+            _, f_id, f_name, f_path, baseline, curr_hash, prev_scan, prev_status, curr_size = item
             alert_level, desc = evaluate_threat('MODIFIED', f_path, scan_context)
 
             cursor.execute("""
@@ -150,21 +163,24 @@ def scan_monitored_files():
                 WHERE file_id = ?
             """, (curr_hash, now_str, f_id))
 
-            # Generate Alert
-            alert_id = f"ALT-{int(datetime.now().timestamp())}-{f_id}"
-            cursor.execute("""
-                INSERT INTO alerts (alert_id, file_id, file_name, event_type, alert_level, previous_hash, current_hash, timestamp, status, description)
-                VALUES (?, ?, ?, 'File Modification', ?, ?, ?, ?, 'Open', ?)
-            """, (alert_id, f_id, f_name, alert_level, baseline, curr_hash, now_str, desc))
-            new_alerts_count += 1
+            # Only trigger a brand new alert if the file was NOT already marked MODIFIED with the identical hash
+            is_new_tamper_event = (prev_status != 'MODIFIED') or (curr_hash != prev_scan)
+            if is_new_tamper_event:
+                unique_ts = int(datetime.now().timestamp() * 1000)
+                alert_id = f"ALT-{unique_ts}-{f_id}"
+                cursor.execute("""
+                    INSERT INTO alerts (alert_id, file_id, file_name, event_type, alert_level, previous_hash, current_hash, timestamp, status, description)
+                    VALUES (?, ?, ?, 'File Modification', ?, ?, ?, ?, 'Open', ?)
+                """, (alert_id, f_id, f_name, alert_level, baseline, curr_hash, now_str, desc))
+                new_alerts_count += 1
 
-            # Activity Log
-            cursor.execute("""
-                INSERT INTO activity_logs (timestamp, file_name, event_type, previous_hash, current_hash, status, alert_level, details)
-                VALUES (?, ?, 'HASH_MISMATCH', ?, ?, 'MODIFIED', ?, ?)
-            """, (now_str, f_name, baseline, curr_hash, alert_level, desc))
+                cursor.execute("""
+                    INSERT INTO activity_logs (timestamp, file_name, event_type, previous_hash, current_hash, status, alert_level, details)
+                    VALUES (?, ?, 'HASH_MISMATCH', ?, ?, 'MODIFIED', ?, ?)
+                """, (now_str, f_name, baseline, curr_hash, alert_level, desc))
 
-        elif status == 'DELETED':
+        elif item[0] == 'DELETED':
+            _, f_id, f_name, f_path, baseline, prev_scan, prev_status, _ = item
             alert_level, desc = evaluate_threat('DELETED', f_path, scan_context)
 
             cursor.execute("""
@@ -173,17 +189,20 @@ def scan_monitored_files():
                 WHERE id = ?
             """, (now_str, f_id))
 
-            alert_id = f"ALT-{int(datetime.now().timestamp())}-{f_id}"
-            cursor.execute("""
-                INSERT INTO alerts (alert_id, file_id, file_name, event_type, alert_level, previous_hash, current_hash, timestamp, status, description)
-                VALUES (?, ?, ?, 'File Deletion', ?, ?, 'FILE_REMOVED', ?, 'Open', ?)
-            """, (alert_id, f_id, f_name, alert_level, baseline, now_str, desc))
-            new_alerts_count += 1
+            # Only trigger a new alert if it wasn't already marked DELETED
+            if prev_status != 'DELETED':
+                unique_ts = int(datetime.now().timestamp() * 1000)
+                alert_id = f"ALT-{unique_ts}-{f_id}"
+                cursor.execute("""
+                    INSERT INTO alerts (alert_id, file_id, file_name, event_type, alert_level, previous_hash, current_hash, timestamp, status, description)
+                    VALUES (?, ?, ?, 'File Deletion', ?, ?, 'FILE_REMOVED', ?, 'Open', ?)
+                """, (alert_id, f_id, f_name, alert_level, baseline, now_str, desc))
+                new_alerts_count += 1
 
-            cursor.execute("""
-                INSERT INTO activity_logs (timestamp, file_name, event_type, previous_hash, current_hash, status, alert_level, details)
-                VALUES (?, ?, 'FILE_MISSING', ?, 'DELETED', 'DELETED', ?, ?)
-            """, (now_str, f_name, baseline, alert_level, desc))
+                cursor.execute("""
+                    INSERT INTO activity_logs (timestamp, file_name, event_type, previous_hash, current_hash, status, alert_level, details)
+                    VALUES (?, ?, 'FILE_MISSING', ?, 'DELETED', 'DELETED', ?, ?)
+                """, (now_str, f_name, baseline, alert_level, desc))
 
     conn.commit()
     conn.close()

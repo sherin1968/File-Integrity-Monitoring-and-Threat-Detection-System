@@ -1,0 +1,29 @@
+services:
+  # 1. Full-Stack / Backend Python Flask Web Service
+  - type: web
+    name: file-integrity-monitoring-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app
+    healthCheckPath: /api/health
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_DEBUG
+        value: "false"
+
+  # 2. Modern React Cybersecurity Dashboard (Render Static Site)
+  - type: static
+    name: file-integrity-monitoring-ui
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: 20
